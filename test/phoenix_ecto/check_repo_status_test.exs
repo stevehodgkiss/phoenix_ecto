@@ -168,7 +168,10 @@ defmodule Phoenix.Ecto.CheckRepoStatusTest do
     assert exception.directories == ["foo"]
 
     # set to multiple directories
-    mock_migrations_fn = fn _repo, ["foo", "bar"], _opts -> [{:down, 1, "migration"}] end
+    mock_migrations_fn = fn
+      _repo, ["foo"], _opts -> [{:down, 1, "migration"}]
+      _repo, ["bar"], _opts -> []
+    end
 
     exception =
       assert_raise(Phoenix.Ecto.PendingMigrationError, fn ->
@@ -180,7 +183,7 @@ defmodule Phoenix.Ecto.CheckRepoStatusTest do
         )
       end)
 
-    assert exception.directories == ["foo", "bar"]
+    assert exception.directories == ["foo"]
   after
     Application.delete_env(:check_repo_ready, :ecto_repos)
     Process.unregister(StorageUpRepo)

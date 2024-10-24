@@ -92,21 +92,13 @@ defmodule Phoenix.Ecto.CheckRepoStatus do
     case Keyword.fetch(opts, :migration_paths) do
       {:ok, migration_directories_fn} ->
         List.wrap(migration_directories_fn.(repo))
-        |> Enum.reduce(%{}, fn
-          path, acc when is_binary(path) ->
-            Map.update(acc, migration_opts, [path], fn paths -> paths ++ [path] end)
+        |> Enum.map(fn
+          path when is_binary(path) ->
+            {[path], migration_opts}
 
-          {paths, opts}, acc ->
-            Map.update(
-              acc,
-              Keyword.merge(migration_opts, opts || []),
-              List.wrap(paths),
-              fn paths ->
-                paths ++ paths
-              end
-            )
+          {paths, opts} ->
+            {List.wrap(paths), opts}
         end)
-        |> Enum.map(fn {opts, paths} -> {paths, opts} end)
 
       :error ->
         try do
