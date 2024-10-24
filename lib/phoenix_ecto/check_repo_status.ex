@@ -62,11 +62,11 @@ defmodule Phoenix.Ecto.CheckRepoStatus do
     true = is_function(migrations_fun, 3)
 
     Enum.all?(dirs_with_migration_opts, fn {dirs, migration_opts} ->
-      check_pending_migrations_in_dir!(repo, dirs, migration_opts, migrations_fun)
+      check_pending_migrations_in_dirs!(repo, dirs, migration_opts, migrations_fun)
     end)
   end
 
-  defp check_pending_migrations_in_dir!(repo, dirs, migration_opts, migrations_fun) do
+  defp check_pending_migrations_in_dirs!(repo, dirs, migration_opts, migrations_fun) do
     try do
       repo
       |> migrations_fun.(dirs, migration_opts)
