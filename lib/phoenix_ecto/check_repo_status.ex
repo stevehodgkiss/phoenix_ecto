@@ -10,7 +10,6 @@ defmodule Phoenix.Ecto.CheckRepoStatus do
     * `:otp_app` - name of the application which the repos are fetched from
     * `:migration_paths` - a function that accepts a repo and returns a migration directory, a list of migration directories, or a list of tuples with a migration directory and options, that is used to check for pending migrations
     * `:migration_lock` - the locking strategy used by the Ecto Adapter when checking for pending migrations. Set to `false` to disable migration locks.
-    * `:prefix` - the prefix used to check for pending migrations.
   """
 
   @behaviour Plug
