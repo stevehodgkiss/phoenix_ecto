@@ -8,7 +8,7 @@ defmodule Phoenix.Ecto.CheckRepoStatus do
   ## Plug options
 
     * `:otp_app` - name of the application which the repos are fetched from
-    * `:migration_paths` - a function that accepts a repo and returns a migration directory, or a list of migration directories, that is used to check for pending migrations
+    * `:migration_paths` - a function that accepts a repo and returns a migration directory, a list of migration directories, or a list of tuples with a migration directory and options, that is used to check for pending migrations
     * `:migration_lock` - the locking strategy used by the Ecto Adapter when checking for pending migrations. Set to `false` to disable migration locks.
     * `:prefix` - the prefix used to check for pending migrations.
   """
@@ -17,7 +17,7 @@ defmodule Phoenix.Ecto.CheckRepoStatus do
 
   alias Plug.Conn
 
-  @migration_opts [:migration_lock, :prefix]
+  @migration_opts [:migration_lock]
   @compile {:no_warn_undefined, Ecto.Migrator}
 
   def init(opts) do
@@ -51,7 +51,7 @@ defmodule Phoenix.Ecto.CheckRepoStatus do
   end
 
   defp check_pending_migrations!(repo, opts) do
-    dirs = migration_directories(repo, opts)
+    dirs_with_migration_opts = migration_directories(repo, opts)
 
     migrations_fun =
       Keyword.get_lazy(opts, :mock_migrations_fn, fn ->
@@ -61,8 +61,13 @@ defmodule Phoenix.Ecto.CheckRepoStatus do
       end)
 
     true = is_function(migrations_fun, 3)
-    migration_opts = Keyword.take(opts, @migration_opts)
 
+    Enum.all?(dirs_with_migration_opts, fn {dirs, migration_opts} ->
+      check_pending_migrations_in_dir!(repo, dirs, migration_opts, migrations_fun)
+    end)
+  end
+
+  defp check_pending_migrations_in_dir!(repo, dirs, migration_opts, migrations_fun) do
     try do
       repo
       |> migrations_fun.(dirs, migration_opts)
@@ -82,15 +87,32 @@ defmodule Phoenix.Ecto.CheckRepoStatus do
   end
 
   defp migration_directories(repo, opts) do
+    migration_opts = Keyword.take(opts, @migration_opts)
+
     case Keyword.fetch(opts, :migration_paths) do
       {:ok, migration_directories_fn} ->
         List.wrap(migration_directories_fn.(repo))
+        |> Enum.reduce(%{}, fn
+          path, acc when is_binary(path) ->
+            Map.update(acc, migration_opts, [path], fn paths -> paths ++ [path] end)
+
+          {paths, opts}, acc ->
+            Map.update(
+              acc,
+              Keyword.merge(migration_opts, opts || []),
+              List.wrap(paths),
+              fn paths ->
+                paths ++ paths
+              end
+            )
+        end)
+        |> Enum.map(fn {opts, paths} -> {paths, opts} end)
 
       :error ->
         try do
-          [Ecto.Migrator.migrations_path(repo)]
+          [{[Ecto.Migrator.migrations_path(repo)], migration_opts}]
         rescue
-          _ -> []
+          _ -> [{[], migration_opts}]
         end
     end
   end

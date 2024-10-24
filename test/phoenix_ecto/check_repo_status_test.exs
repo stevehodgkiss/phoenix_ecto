@@ -119,16 +119,13 @@ defmodule Phoenix.Ecto.CheckRepoStatusTest do
     Process.unregister(StorageUpRepo)
   end
 
-  test "supports Ecto's prefix option" do
+  test "supports migration_paths with a list of tuples with opts" do
     Process.register(self(), StorageUpRepo)
     Application.put_env(:check_repo_ready, :ecto_repos, [StorageUpRepo])
 
-    mock_migrations_fn = fn _repo, _directories, opts ->
-      if opts[:prefix] == "tenant_1" do
-        [{:down, 1, "migration"}]
-      else
-        []
-      end
+    mock_migrations_fn = fn
+      _repo, ["bar"], [{:prefix, "tenant_1"} | _] -> [{:down, 1, "migration"}]
+      _repo, ["foo"], _opts -> []
     end
 
     conn = conn(:get, "/")
@@ -139,7 +136,7 @@ defmodule Phoenix.Ecto.CheckRepoStatusTest do
           conn,
           otp_app: :check_repo_ready,
           mock_migrations_fn: mock_migrations_fn,
-          prefix: "tenant_1"
+          migration_paths: fn _repo -> ["foo", {"bar", [prefix: "tenant_1"]}] end
         )
       end)
 
